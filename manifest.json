@@ -1,0 +1,17 @@
+{
+  "name": "Kids Club Pro",
+  "short_name": "KidsClub",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#87CEEB",
+  "theme_color": "#FFC107",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icone.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

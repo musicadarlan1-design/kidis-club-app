@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Kids Club Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FFC107">
+    <link rel="apple-touch-icon" href="icone.png">
+
+    <style>
+        /* --- GERAL --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Comic Sans MS', sans-serif; user-select: none; -webkit-user-select: none; }
+        body { background-color: #87CEEB; overflow: hidden; width: 100vw; height: 100vh; position: fixed; touch-action: none; }
+        
+        .tela { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; display: flex; flex-direction: column; background: #E1F5FE; z-index: 10; }
+        .escondido { display: none !important; }
+        
+        /* MENU */
+        #tela-menu { align-items: center; justify-content: center; background: #87CEEB; text-align: center; }
+        .titulo-app { font-size: 3rem; color: white; text-shadow: 3px 3px 0 #000; margin-bottom: 20px; }
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 400px; }
+        .menu-item { background: white; border-radius: 20px; padding: 20px; border: 4px solid white; box-shadow: 0 5px 0 rgba(0,0,0,0.1); }
+        
+        /* LISTAS */
+        .card { background: white; width: 90%; margin: 10px auto; border-radius: 15px; padding: 10px; display: flex; align-items: center; gap: 10px; }
+        .card img { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; }
+        .grid-desenhos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; padding-bottom: 100px; }
+        .mini-card { background: white; padding: 5px; border-radius: 10px; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .mini-card img { max-width: 100%; max-height: 90px; object-fit: contain; }
+
+        /* PINTURA */
+        #tela-pintura { background: #fff; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        .topo { height: 50px; flex-shrink: 0; background: #FFC107; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; z-index: 10; }
+        .area-canvas { flex: 1; position: relative; margin: 10px; margin-bottom: 90px; border: 2px dashed #ccc; border-radius: 10px; overflow: hidden; background: white; display: flex; align-items: center; justify-content: center; }
+        .canvas-stack { position: relative; width: 100%; height: 100%; }
+        .canvas-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #canvas-pintura { z-index: 1; }
+        #canvas-contorno { z-index: 2; pointer-events: none; }
+
+        /* FERRAMENTAS */
+        .ferramentas { position: fixed; bottom: 0; left: 0; width: 100%; height: 80px; background: #f0f0f0; display: flex; align-items: center; padding: 5px; gap: 10px; z-index: 20; border-top: 2px solid #ccc; }
+        #paleta-cores { display: flex; flex: 1; gap: 15px; overflow-x: auto; white-space: nowrap; padding: 0 10px; height: 100%; align-items: center; touch-action: pan-x !important; pointer-events: auto !important; }
+        .tool-btn { min-width: 50px; height: 50px; background: white; border-radius: 10px; font-size: 1.5rem; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .tool-btn.ativa { background: #BBDEFB; border-color: #2196F3; }
+        .cor { min-width: 50px; height: 50px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0; }
+        .cor.ativa { transform: scale(1.1); border: 3px solid #000; }
+
+        /* MEMÓRIA */
+        #tela-memoria { background: #8BC34A; }
+        .grid-memoria { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; padding: 15px; width: 100%; max-width: 600px; margin: 0 auto; }
+        .carta { background: white; aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 3px solid white; box-shadow: 0 3px 0 rgba(0,0,0,0.1); cursor: pointer; }
+        .carta.escondida { background: #2196F3; color: transparent; }
+        
+        /* BOLHAS (NOVO HUD) */
+        #tela-bolhas { background: linear-gradient(to bottom, #4fc3f7, #e1f5fe); }
+        
+        .hud-bolhas {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 20; pointer-events: none; /* Deixa clicar nas bolhas por baixo */
+        }
+        .hud-item {
+            background: rgba(255,255,255,0.8); padding: 5px 15px; 
+            border-radius: 20px; font-weight: bold; font-size: 1.2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            pointer-events: auto; /* Botão de sair funciona */
+        }
+        
+        .bolha { position: absolute; font-size: 3rem; width: 70px; height: 70px; background: rgba(255,255,255,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.8); animation: subir linear forwards; cursor: pointer; }
+        @keyframes subir { from { bottom: -100px; } to { bottom: 110vh; } }
+        
+        /* Modal Game Over */
+        #modal-gameover {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center;
+        }
+
+        .btn { background: #FF5252; color: white; border: none; padding: 8px 12px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <!-- MENU -->
+    <div id="tela-menu" class="tela">
+        <h1 class="titulo-app">🎨 Kids Club</h1>
+        <button id="btn-instalar" class="btn" style="background:orange; margin-bottom:15px; display:none" onclick="instalarApp()">📲 Baixar App</button>
+        <div class="menu-grid">
+            <div class="menu-item" onclick="navegar('temas')"><h1>🖌️</h1>Pintar</div>
+            <div class="menu-item" onclick="iniciarMemoria()"><h1>🦁</h1>Memória</div>
+            <div class="menu-item" onclick="iniciarBolhas()"><h1>🎈</h1>Bolhas</div>
+        </div>
+    </div>
+
+    <!-- TEMAS -->
+    <div id="tela-temas" class="tela escondido">
+        <div style="padding:10px; display:flex; align-items:center;">
+            <button class="btn" onclick="navegar('menu')">🏠 Voltar</button>
+            <h2 style="flex:1; text-align:center; margin:0">Álbuns</h2>
+        </div>
+        <div id="lista-temas"></div>
+    </div>
+
+    <!-- GALERIA -->
+    <div id="tela-galeria" class="tela escondido">
+        <div style="padding:10px; display:flex; align-items:center;">
+            <button class="btn" onclick="navegar('temas')">⬅ Álbuns</button>
+            <h3 id="titulo-tema" style="margin-left:10px;">Tema</h3>
+        </div>
+        <div id="grid-desenhos" class="grid-desenhos"></div>
+    </div>
+
+    <!-- PINTURA -->
+    <div id="tela-pintura" class="tela escondido">
+        <div class="topo">
+            <button class="btn" onclick="sairPintura()">⬅ Sair</button>
+            <button class="btn" style="background:#2196F3" onclick="desfazer()">↩</button>
+            <button class="btn" style="background:#4CAF50" onclick="salvar()">💾</button>
+        </div>
+        
+        <div class="area-canvas">
+            <div id="canvas-stack" class="canvas-stack"></div>
+            <img id="overlay-img" style="display:none;">
+        </div>
+
+        <div class="ferramentas">
+            <div style="display:flex; gap:5px;">
+                <div id="btn-pincel" class="tool-btn ativa" onclick="setTool('pincel')">🖌️</div>
+                <div id="btn-balde" class="tool-btn" onclick="setTool('balde')">🪣</div>
+                <div id="btn-borracha" class="tool-btn" onclick="setTool('borracha')">🧽</div>
+            </div>
+            <div style="width:1px; background:#ccc; height:40px; margin:0 5px;"></div>
+            <div id="paleta-cores"></div>
+        </div>
+    </div>
+
+    <!-- MEMÓRIA -->
+    <div id="tela-memoria" class="tela escondido">
+        <div style="padding:10px; text-align:left;">
+            <button class="btn" onclick="navegar('menu')">🏠 Sair</button>
+        </div>
+        <h1 style="color:white; text-align:center;" id="titulo-memoria">Nível 1</h1>
+        <div id="grid-memoria" class="grid-memoria"></div>
+    </div>
+
+    <!-- BOLHAS (ATUALIZADO) -->
+    <div id="tela-bolhas" class="tela escondido">
+        <div class="hud-bolhas">
+            <button class="btn" onclick="pararBolhas()">🏠 Sair</button>
+            <div class="hud-item">Nível <span id="nivel-bolha">1</span></div>
+            <div class="hud-item">❤️ <span id="vidas-bolha">3</span></div>
+            <div class="hud-item">Pts: <span id="pts-bolha">0</span></div>
+        </div>
+        <div id="area-bolhas"></div>
+        
+        <!-- Game Over -->
+        <div id="modal-gameover" style="display:none;">
+            <h1 style="font-size:4rem;">💀</h1>
+            <h1>FIM DE JOGO!</h1>
+            <h2>Pontuação: <span id="final-pts">0</span></h2>
+            <br>
+            <button class="btn" style="font-size:1.5rem; padding:10px 30px;" onclick="iniciarBolhas()">Jogar de Novo</button>
+            <br><br>
+            <button class="btn" style="background:#555" onclick="navegar('menu')">Menu Principal</button>
+        </div>
+    </div>
+    <script>
+        const TELAS = ['menu','temas','galeria','pintura','memoria','bolhas'];
+        const CORES = ['#F44336','#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#03A9F4','#00BCD4','#009688','#4CAF50','#8BC34A','#CDDC39','#FFEB3B','#FFC107','#FF9800','#FF5722','#795548','#9E9E9E','#607D8B','#000000','#FFFFFF'];
+        
+        // --- LISTA DE TEMAS ATUALIZADA ---
+        const TEMAS = [
+            { titulo: "Cleo & Cuquin", capa: "imagens/cleo-cuquin.jpg", prefixo: "imagens/cuquin", qtd: 11 },
+            { titulo: "Dinossauros", capa: "imagens/dinossauros.jpg", prefixo: "imagens/dinossauro", qtd: 12 },
+            { titulo: "Super Heróis", capa: "imagens/super-herois.jpg", prefixo: "imagens/herois", qtd: 14 },
+            // Novo tema adicionado conforme seu arquivo:
+            { titulo: "Relâmpago McQueen", capa: "imagens/relampagomacgueen.jpg", prefixo: "imagens/Macgueen", qtd: 10 }
+        ];
+
+        const sons = { 
+            pop: new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg'),
+            win: new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg'),
+            boom: new Audio('https://actions.google.com/sounds/v1/explosions/gas_explosion.ogg'),
+            fail: new Audio('https://actions.google.com/sounds/v1/cartoon/clank_car_crash.ogg')
+        };
+        function tocar(n){ try{sons[n].currentTime=0; sons[n].play().catch(()=>{});}catch(e){} }
+
+        // --- SETUP ---
+        (function init(){
+            try{
+                const lista=document.getElementById('lista-temas');
+                lista.innerHTML = ''; // Limpa antes de recriar para não duplicar se recarregar
+                TEMAS.forEach((t,i)=>{ 
+                    lista.innerHTML+=`<div class="card" onclick="abrirAlbum(${i})"><img src="${t.capa}" onerror="this.src='icone.png'"><h3>${t.titulo}</h3></div>`;
+                });
+                const paleta=document.getElementById('paleta-cores');
+                if(paleta.childElementCount === 0) { // Evita duplicar cores
+                    CORES.forEach(c=>{ 
+                        const d=document.createElement('div'); 
+                        d.className='cor'; d.style.background=c; d.onclick=()=>setCor(c,d); 
+                        paleta.appendChild(d); 
+                    });
+                }
+                if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+            }catch(e){}
+        })();
+
+        function navegar(t){
+            TELAS.forEach(x=>document.getElementById('tela-'+x).classList.add('escondido'));
+            document.getElementById('tela-'+t).classList.remove('escondido');
+        }
+
+        // --- PINTURA ---
+        const stack = document.getElementById('canvas-stack');
+        // Limpa stack se já existir para evitar bugs de recarga
+        stack.innerHTML = ''; 
+        
+        const canvasPintura = document.createElement('canvas'); canvasPintura.id='canvas-pintura'; canvasPintura.className='canvas-layer'; stack.appendChild(canvasPintura);
+        const ctxP = canvasPintura.getContext('2d', {willReadFrequently: true});
+        const canvasContorno = document.createElement('canvas'); canvasContorno.id='canvas-contorno'; canvasContorno.className='canvas-layer'; stack.appendChild(canvasContorno);
+        const ctxC = canvasContorno.getContext('2d', {willReadFrequently: true});
+        
+        let tool='pincel', cor='#F44336', history=[];
+        let isDrawing=false, lastPoint=null;
+
+        function abrirAlbum(idx){
+            navegar('galeria'); document.getElementById('titulo-tema').innerText=TEMAS[idx].titulo;
+            const g=document.getElementById('grid-desenhos'); g.innerHTML='';
+            for(let i=1;i<=TEMAS[idx].qtd;i++){
+                const num=i<10?'0'+i:i; const url=`${TEMAS[idx].prefixo}${num}.jpg`;
+                const d=document.createElement('div'); d.className='mini-card'; 
+                d.innerHTML=`<img src="${url}" loading="lazy">`;
+                d.onclick=()=>iniciarPintura(url); g.appendChild(d);
+            }
+        }
+        function iniciarPintura(url){
+            navegar('pintura');
+            const img = document.getElementById('overlay-img'); img.src = url;
+            img.onload = () => {
+                canvasPintura.width = img.naturalWidth; canvasPintura.height = img.naturalHeight;
+                canvasContorno.width = img.naturalWidth; canvasContorno.height = img.naturalHeight;
+                ctxP.clearRect(0,0,canvasPintura.width, canvasPintura.height); ctxC.clearRect(0,0,canvasContorno.width, canvasContorno.height);
+                ctxC.drawImage(img, 0, 0);
+                const imgData = ctxC.getImageData(0, 0, canvasContorno.width, canvasContorno.height); const data = imgData.data;
+                for(let i=0; i<data.length; i+=4){ if(data[i]>150 && data[i+1]>150 && data[i+2]>150) data[i+3] = 0; }
+                ctxC.putImageData(imgData, 0, 0);
+                ctxP.lineCap='round'; ctxP.lineJoin='round'; history=[]; saveState();
+            };
+        }
+        function setTool(t){ tool=t; document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('ativa')); document.getElementById('btn-'+t).classList.add('ativa'); }
+        function setCor(c,el){ cor=c; document.querySelectorAll('.cor').forEach(x=>x.classList.remove('ativa')); if(el)el.classList.add('ativa'); if(tool==='borracha')setTool('pincel'); }
+        function getPos(e){
+            const rect = canvasPintura.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: Math.floor((cx - rect.left) * (canvasPintura.width / rect.width)), y: Math.floor((cy - rect.top) * (canvasPintura.height / rect.height)) };
+        }
+        function isBarreira(x, y) {
+            if(x<=0 || y<=0 || x>=canvasContorno.width-1 || y>=canvasContorno.height-1) return true;
+            const data = ctxC.getImageData(Math.floor(x)-1, Math.floor(y)-1, 3, 3).data;
+            for(let i=3; i<data.length; i+=4) { if(data[i] > 50) return true; }
+            return false;
+        }
+        function startDraw(e){
+            const p = getPos(e);
+            if(tool === 'balde'){ floodFill(p.x, p.y, hexToRgb(cor)); }
+            else { isDrawing = true; lastPoint = p; saveState(); if(!isBarreira(p.x, p.y) && tool !== 'borracha') { ctxP.beginPath(); ctxP.arc(p.x, p.y, 5, 0, Math.PI*2); ctxP.fillStyle=cor; ctxP.fill(); } }
+        }
+        function moveDraw(e){
+            if(!isDrawing || tool === 'balde') return;
+            if(e.target.id === 'canvas-pintura' && e.cancelable) e.preventDefault();
+            const current = getPos(e);
+            if(tool === 'borracha'){
+                ctxP.globalCompositeOperation = 'destination-out'; ctxP.lineWidth = 30; ctxP.strokeStyle = 'rgba(0,0,0,1)';
+                ctxP.beginPath(); ctxP.moveTo(lastPoint.x, lastPoint.y); ctxP.lineTo(current.x, current.y); ctxP.stroke();
+                ctxP.globalCompositeOperation = 'source-over'; lastPoint = current;
+            } else { lastPoint = plotLineSafe(lastPoint.x, lastPoint.y, current.x, current.y); }
+        }
+        function endDraw(){ isDrawing=false; }
+        function plotLineSafe(x0, y0, x1, y1) {
+            const dx = x1 - x0, dy = y1 - y0, d = Math.sqrt(dx*dx + dy*dy);
+            if (d === 0) return {x: x0, y: y0};
+            const sx = dx / d, sy = dy / d;
+            let cx = x0, cy = y0, lx = x0, ly = y0;
+            for (let i = 0; i < d; i += 0.4) {
+                const nx = cx + (sx * 0.4), ny = cy + (sy * 0.4);
+                if (isBarreira(nx, ny)) return {x: lx, y: ly};
+                cx = nx; cy = ny; lx = cx; ly = cy;
+                ctxP.beginPath(); ctxP.arc(cx, cy, 5, 0, Math.PI*2); ctxP.fillStyle = cor; ctxP.fill();
+            }
+            return {x: x1, y: y1};
+        }
+        function floodFill(sx, sy, color){
+            saveState(); const w=canvasPintura.width, h=canvasPintura.height;
+            const pData=ctxP.getImageData(0,0,w,h).data, cData=ctxC.getImageData(0,0,w,h).data, idx=(sy*w+sx)*4;
+            if(cData[idx+3]>50 || (pData[idx]===color[0] && pData[idx+3]===255)) return;
+            const stack=[sx, sy], p32=new Uint32Array(pData.buffer), c32=new Uint32Array(cData.buffer);
+            while(stack.length){
+                const y=stack.pop(), x=stack.pop(), i=y*w+x;
+                if(x<0||x>=w||y<0||y>=h||(c32[i]>>>24)>50) continue;
+                const pos=i*4;
+                if(pData[pos]===color[0]&&pData[pos+1]===color[1]&&pData[pos+2]===color[2]&&pData[pos+3]===255) continue;
+                pData[pos]=color[0]; pData[pos+1]=color[1]; pData[pos+2]=color[2]; pData[pos+3]=255;
+                stack.push(x+1,y,x-1,y,x,y+1,x,y-1);
+            }
+            ctxP.putImageData(new ImageData(pData, w, h), 0, 0);
+        }
+        function hexToRgb(h){ const i=parseInt(h.slice(1),16); return [(i>>16)&255, (i>>8)&255, i&255]; }
+        canvasPintura.addEventListener('mousedown', startDraw); canvasPintura.addEventListener('mousemove', moveDraw); canvasPintura.addEventListener('mouseup', endDraw);
+        canvasPintura.addEventListener('touchstart', startDraw, {passive:false}); canvasPintura.addEventListener('touchmove', moveDraw, {passive:false}); canvasPintura.addEventListener('touchend', endDraw);
+        function saveState(){ if(history.length>6)history.shift(); history.push(canvasPintura.toDataURL()); }
+        window.desfazer = () => { if(history.length){ let i=new Image(); i.src=history.pop(); i.onload=()=>{ ctxP.clearRect(0,0,canvasPintura.width,canvasPintura.height); ctxP.drawImage(i,0,0); } } else { ctxP.clearRect(0,0,canvasPintura.width,canvasPintura.height); } };
+        window.sairPintura = () => { if(confirm("Sair?")) navegar('galeria'); };
+        window.salvar = () => { const t=document.createElement('canvas'); t.width=canvasPintura.width; t.height=canvasPintura.height; const x=t.getContext('2d'); x.fillStyle='white'; x.fillRect(0,0,t.width,t.height); x.drawImage(canvasPintura,0,0); x.drawImage(canvasContorno,0,0); const l=document.createElement('a'); l.download='arte.png'; l.href=t.toDataURL(); l.click(); };
+
+        // --- MEMÓRIA (MANTIDA) ---
+        const ICONS = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋'];
+        let viradas=[], paresMem=0, nivelMem=1;
+        window.iniciarMemoria = () => { nivelMem=1; loadMemoria(); };
+        function loadMemoria() {
+            navegar('memoria'); document.getElementById('titulo-memoria').innerText="Nível "+nivelMem;
+            const g=document.getElementById('grid-memoria'); g.innerHTML=''; viradas=[]; paresMem=0;
+            let qtd=Math.min(2+nivelMem, 15); let cartas=[...ICONS.slice(0,qtd), ...ICONS.slice(0,qtd)].sort(()=>Math.random()-0.5);
+            cartas.forEach(i=>{ const c=document.createElement('div'); c.className='carta escondida'; c.innerText=i; c.onclick=()=>flip(c,qtd); g.appendChild(c); });
+        }
+        function flip(c, total){
+            if(!c.classList.contains('escondida') || viradas.length>=2) return;
+            tocar('pop'); c.classList.remove('escondida'); viradas.push(c);
+            if(viradas.length===2){
+                if(viradas[0].innerText===viradas[1].innerText){ viradas=[]; paresMem++; tocar('win'); if(paresMem===total) setTimeout(()=>{alert("Nível "+nivelMem+" Completo!"); nivelMem++; loadMemoria();},500); }
+                else setTimeout(()=>{ viradas[0].classList.add('escondida'); viradas[1].classList.add('escondida'); viradas=[]; },1000);
+            }
+        }
+
+        // --- JOGO BOLHAS ARCADE 2.0 (MANTIDO) ---
+        let loopBolhas, pts=0, nivelBolha=1, vidas=3;
+        let velocidadeBase = 3000;
+
+        window.iniciarBolhas = () => {
+            navegar('bolhas');
+            document.getElementById('modal-gameover').style.display = 'none';
+            pts = 0; nivelBolha = 1; vidas = 3; velocidadeBase = 3000;
+            atualizarHud();
+            if(loopBolhas) clearInterval(loopBolhas);
+            loopBolhas = setInterval(criarBolha, 800);
+        };
+
+        function atualizarHud() {
+            document.getElementById('pts-bolha').innerText = pts;
+            document.getElementById('nivel-bolha').innerText = nivelBolha;
+            document.getElementById('vidas-bolha').innerText = vidas;
+        }
+
+        function criarBolha() {
+            const area = document.getElementById('area-bolhas');
+            if(area.childElementCount > 20) return;
+
+            const b = document.createElement('div');
+            b.className = 'bolha';
+            
+            const chance = Math.random();
+            let tipo = 'normal';
+            let conteudo = '🎈';
+            
+            if (chance < 0.15) { tipo = 'bomba-ponto'; conteudo = '💣'; } 
+            else if (chance < 0.25) { tipo = 'caveira'; conteudo = '💀'; }
+
+            b.innerText = conteudo;
+            b.style.left = Math.random() * 80 + 10 + '%';
+            
+            let duracao = Math.max(0.8, (velocidadeBase - (nivelBolha * 200)) / 1000);
+            duracao += Math.random(); 
+            b.style.animationDuration = duracao + 's';
+
+            b.onpointerdown = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (tipo === 'caveira') { tocar('boom'); perderVida(); b.style.background = 'black'; } 
+                else if (tipo === 'bomba-ponto') { tocar('fail'); pts = Math.max(0, pts - 5); b.style.background = 'red'; verificarNivel(); } 
+                else { tocar('pop'); pts++; verificarNivel(); }
+                
+                atualizarHud();
+                b.style.transform = "scale(1.5)"; b.style.opacity = "0";
+                setTimeout(() => { if(b.parentNode) b.remove(); }, 100);
+            };
+
+            b.onanimationend = () => { if(b.parentNode) b.remove(); };
+            area.appendChild(b);
+        }
+
+        function verificarNivel() {
+            if (pts > 0 && pts % 50 === 0) {
+                nivelBolha++; tocar('win');
+                const hud = document.querySelector('.hud-bolhas');
+                hud.style.background = '#8BC34A';
+                setTimeout(() => hud.style.background = 'transparent', 500);
+            }
+        }
+
+        function perderVida() {
+            vidas--;
+            if (vidas <= 0) { gameOver(); }
+        }
+
+        function gameOver() {
+            clearInterval(loopBolhas);
+            document.getElementById('area-bolhas').innerHTML = '';
+            document.getElementById('final-pts').innerText = pts;
+            document.getElementById('modal-gameover').style.display = 'flex';
+            tocar('fail');
+        }
+
+        window.pararBolhas = () => { clearInterval(loopBolhas); navegar('menu'); document.getElementById('area-bolhas').innerHTML = ''; };
+    </script>
