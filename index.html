@@ -163,16 +163,17 @@
             <button class="btn" style="background:#555" onclick="navegar('menu')">Menu Principal</button>
         </div>
     </div>
-        <script>
+                            <script>
         const TELAS = ['menu','temas','galeria','pintura','memoria','bolhas'];
         const CORES = ['#F44336','#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#03A9F4','#00BCD4','#009688','#4CAF50','#8BC34A','#CDDC39','#FFEB3B','#FFC107','#FF9800','#FF5722','#795548','#9E9E9E','#607D8B','#000000','#FFFFFF'];
         
-        // --- CORREÇÃO AQUI: 'macgueen' MINÚSCULO ---
+        // --- CORREÇÃO FINAL: Nomes exatos da sua pasta ---
         const TEMAS = [
             { titulo: "Cleo & Cuquin", capa: "imagens/cleo-cuquin.jpg", prefixo: "imagens/cuquin", qtd: 11 },
             { titulo: "Dinossauros", capa: "imagens/dinossauros.jpg", prefixo: "imagens/dinossauro", qtd: 12 },
             { titulo: "Super Heróis", capa: "imagens/super-herois.jpg", prefixo: "imagens/herois", qtd: 14 },
-            { titulo: "Relâmpago McQueen", capa: "imagens/relampagomacgueen.jpg", prefixo: "imagens/macgueen", qtd: 10 }
+            // AQUI MUDOU: prefixo 'mcqueen' e capa 'relampagomcqueen.jpg'
+            { titulo: "Relâmpago McQueen", capa: "imagens/relampagomcqueen.jpg", prefixo: "imagens/mcqueen", qtd: 10 }
         ];
 
         const sons = { 
@@ -189,7 +190,11 @@
                 const lista=document.getElementById('lista-temas');
                 lista.innerHTML = '';
                 TEMAS.forEach((t,i)=>{ 
-                    lista.innerHTML+=`<div class="card" onclick="abrirAlbum(${i})"><img src="${t.capa}" onerror="this.src='icone.png'"><h3>${t.titulo}</h3></div>`;
+                    // Adicionei um tratamento de erro extra na imagem da capa
+                    lista.innerHTML+=`<div class="card" onclick="abrirAlbum(${i})">
+                        <img src="${t.capa}" onerror="this.src='icone.png'; console.log('Erro ao carregar: ${t.capa}')">
+                        <h3>${t.titulo}</h3>
+                    </div>`;
                 });
                 const paleta=document.getElementById('paleta-cores');
                 if(paleta.childElementCount === 0) {
@@ -210,6 +215,7 @@
 
         // --- PINTURA ---
         const stack = document.getElementById('canvas-stack');
+        // Garante limpeza ao iniciar
         stack.innerHTML = ''; 
         const canvasPintura = document.createElement('canvas'); canvasPintura.id='canvas-pintura'; canvasPintura.className='canvas-layer'; stack.appendChild(canvasPintura);
         const ctxP = canvasPintura.getContext('2d', {willReadFrequently: true});
@@ -222,9 +228,13 @@
             navegar('galeria'); document.getElementById('titulo-tema').innerText=TEMAS[idx].titulo;
             const g=document.getElementById('grid-desenhos'); g.innerHTML='';
             for(let i=1;i<=TEMAS[idx].qtd;i++){
-                const num=i<10?'0'+i:i; const url=`${TEMAS[idx].prefixo}${num}.jpg`;
+                // Formata número com zero à esquerda (01, 02... 10)
+                const num = i < 10 ? '0' + i : i; 
+                const url = `${TEMAS[idx].prefixo}${num}.jpg`;
+                
                 const d=document.createElement('div'); d.className='mini-card'; 
-                d.innerHTML=`<img src="${url}" loading="lazy">`;
+                // Adicionei tratamento de erro para você ver se alguma imagem falhar
+                d.innerHTML=`<img src="${url}" loading="lazy" onerror="this.src='icone.png'">`;
                 d.onclick=()=>iniciarPintura(url); g.appendChild(d);
             }
         }
@@ -370,5 +380,6 @@
         }
         window.pararBolhas = () => { clearInterval(loopBolhas); navegar('menu'); document.getElementById('area-bolhas').innerHTML = ''; };
     </script>
+
 </body>
 </html>
